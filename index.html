@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Volunteer groups across inner Melbourne, mapped, with the time each one asks for.">
+<title>Inner Melbourne Volunteer Atlas</title>
+<style>
+/* Layout: Swiss-style field sheet. Helvetica throughout, black rules, square edges; colour only for causes and heat. */
+:root{
+  --bg:#FFFFFF; --surface:#FFFFFF; --ink:#111111; --muted:#6B6B6B; --line:#111111; --hair:#D4D4D4;
+  --water:#E4E9EB; --land:#FFFFFF; --creek:#8FA9B3;
+  --accent:#111111; --accent-soft:#F1F1EC; --wattle:#B5121B;
+  --display:"Helvetica Neue", Helvetica, Arial, sans-serif;
+  --body:"Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono:"Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E0E0E; --surface:#0E0E0E; --ink:#F2F2F2; --muted:#9A9A9A; --line:#F2F2F2; --hair:#333333;
+  --water:#1B2326; --land:#0E0E0E; --creek:#5A7F8A; --accent:#F2F2F2; --accent-soft:#1D1D1D; --wattle:#FF5A4E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E0E0E; --surface:#0E0E0E; --ink:#F2F2F2; --muted:#9A9A9A; --line:#F2F2F2; --hair:#333333;
+  --water:#1B2326; --land:#0E0E0E; --creek:#5A7F8A; --accent:#F2F2F2; --accent-soft:#1D1D1D; --wattle:#FF5A4E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+header{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 24px;border-top:6px solid var(--line);padding-top:14px}
+@media (max-width:760px){header{grid-template-columns:1fr}}
+.eyebrow{font-size:13px;font-weight:700;grid-column:1/-1}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(40px,7vw,84px);line-height:.92;letter-spacing:-.035em;margin:0;text-wrap:balance}
+header p{margin:0;font-size:17px;max-width:46ch;align-self:end}
+.stats{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media (max-width:620px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stats span{padding:10px 12px 0 0;display:flex;flex-direction:column}
+.stats b{color:var(--ink);font-weight:700;font-size:32px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;order:-1}
+.top{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.top{grid-template-columns:1fr}}
+.mapbox{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:10px}
+.mapbox canvas{width:100%;height:auto;display:block;cursor:crosshair}
+.maphead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.maphead h2,.side h2,.reg h2{font-family:var(--display);font-weight:700;font-size:15px;margin:0}
+.seg{display:inline-flex;border:1px solid var(--line)}
+.seg button{font:400 13px var(--body);padding:5px 10px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.legend{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.mapbox canvas.ramp{width:140px;height:8px;display:inline-block}
+.note{font-size:12px;color:var(--muted)}
+.side{display:flex;flex-direction:column;gap:28px}
+.panel{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:400 13px var(--body);padding:5px 9px;border:1px solid var(--hair);background:transparent;color:var(--ink);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip .dot{width:8px;height:8px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip .n{font-size:11px;opacity:.6;font-variant-numeric:tabular-nums}
+label.lab{font-size:13px;font-weight:700;color:var(--ink)}
+.detail h3{font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:-.02em;margin:0;line-height:1.05}
+.detail dl{display:grid;grid-template-columns:72px 1fr;gap:0;margin:0;font-size:14px}
+.detail dt,.detail dd{border-top:1px solid var(--hair);padding:7px 0}
+.detail dt{color:var(--muted);font-size:13px}
+.detail dd{margin:0;min-width:0}
+.pill{font-size:12px;color:var(--muted);white-space:nowrap}
+.pill.ok{display:none}
+.pill.ask{color:var(--wattle)}
+a{color:var(--ink);text-underline-offset:2px}
+a:hover{color:var(--wattle)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,tr:focus-visible{outline:2px solid var(--wattle);outline-offset:2px}
+.reg{display:flex;flex-direction:column;gap:12px;border-top:6px solid var(--line);padding-top:12px}
+.reg h2{font-size:clamp(28px,4vw,44px);letter-spacing:-.03em}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar input,.toolbar select{font:14px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:0;background:var(--bg);color:var(--ink)}
+.toolbar input{flex:1 1 220px;min-width:0}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:14px}
+th{font:700 13px var(--body);text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--bg);position:sticky;top:0}
+td{padding:10px 12px 10px 0;border-bottom:1px solid var(--hair);vertical-align:top}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--accent-soft)}
+tbody tr[aria-selected="true"]{background:var(--accent-soft);box-shadow:inset 0 -2px 0 var(--ink)}
+td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;font-weight:700}
+td .sub{display:block;color:var(--muted);font-size:13px}
+.causecell{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.causecell .dot{border-radius:0!important}
+.more{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.more div{min-width:0}
+.more b{display:block;margin-bottom:2px}
+footer{font-size:12px;color:var(--muted);max-width:80ch;border-top:1px solid var(--line);padding-top:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Naarm / Melbourne, October 2026</span>
+    <h1>Inner Melbourne Volunteer Atlas</h1>
+    <p>Groups caring for people and Country in the inner city, and how much time each one asks of you. Filter by cause or rhythm. Tap a row to find it on the map.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <section class="top">
+    <div class="mapbox">
+      <div class="maphead">
+        <h2>Where the work happens</h2>
+        <div class="seg" role="group" aria-label="Heat weighting">
+          <button id="wCount" aria-pressed="true">By number of groups</button>
+          <button id="wHours" aria-pressed="false">By hours needed</button>
+        </div>
+      </div>
+      <canvas id="map" width="900" height="900" aria-label="Heat map of volunteer groups in inner Melbourne"></canvas>
+      <div class="legend"><span>fewer</span><canvas class="ramp" id="ramp" width="140" height="8"></canvas><span>more</span><span>Filled squares are groups. Outlined squares are their other sites.</span></div>
+      <div class="note" id="offmap"></div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <label class="lab">Cause</label>
+        <div class="chips" id="causeChips"></div>
+        <label class="lab">How often they need you</label>
+        <div class="chips" id="freqChips"></div>
+      </div>
+      <div class="panel detail" id="detail" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="reg">
+    <h2>The register</h2>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Search groups, suburbs, tasks" aria-label="Search">
+      <select id="sort" aria-label="Sort">
+        <option value="hrs-asc">Lightest commitment first</option>
+        <option value="hrs-desc">Biggest commitment first</option>
+        <option value="name">A to Z</option>
+        <option value="cause">By cause</option>
+      </select>
+      <span class="note" id="count"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Group</th><th>Cause</th><th>Where</th><th>Time they ask for</th><th style="text-align:right">≈ hrs / month</th><th>Source</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="note">Hours a month are a rough guide for one regular volunteer, worked out from the published shift pattern. <span class="pill ask">Unconfirmed</span> means the group doesn't publish a commitment, so the figure is a guess and worth checking before you sign up.</p>
+  </section>
+
+  <section class="panel">
+    <h2 style="font-weight:700;font-size:15px;margin:0">Finding the rest</h2>
+    <div class="more">
+      <div><b>Merri Events Calendar</b><a href="https://mcmc.org.au" target="_blank" rel="noopener">mcmc.org.au</a><br><span class="note">Every working bee on the Merri, Moonee Ponds and nearby creeks.</span></div>
+      <div><b>GoVolunteer</b><a href="https://govolunteer.com.au" target="_blank" rel="noopener">govolunteer.com.au</a><br><span class="note">Volunteering Victoria's search, filter by suburb.</span></div>
+      <div><b>ParkConnect</b><a href="https://www.parkconnect.vic.gov.au" target="_blank" rel="noopener">parkconnect.vic.gov.au</a><br><span class="note">Parks Victoria sites, incl. Westgate and St Kilda pier.</span></div>
+      <div><b>Your council</b><span class="note">Merri-bek, Yarra and Port Phillip each list local Friends groups, and Merri-bek alone supports 24 environment groups.</span></div>
+    </div>
+  </section>
+
+  <footer>Compiled October 2026 from each group's own pages and current volunteer listings. Shifts and intakes change, so treat this as a starting point and confirm with the group. Locations are approximate; the map is schematic.</footer>
+</div>
+
+<script>
+const DATA = [{"name": "FareShare kitchen", "cause": "Food relief", "what": "Chop, cook and pack free meals in Australia's largest charity kitchen", "where": "1-7 South Audley St, Abbotsford", "lat": -37.8045, "lng": 144.9985, "freq": "weekly", "hrs": 10, "commit": "Regular shift: early 1.5h, day 3.5h or evening 2.5h; min 6 months", "url": "https://fareshare.net.au/volunteering-in-the-kitchen", "src": "https://fareshare.net.au/volunteering-in-the-kitchen", "verified": true, "note": "Weekday and Saturday shifts", "id": 0, "extra": []}, {"name": "FareShare kitchen garden", "cause": "Gardens & food growing", "what": "Grow vegetables for FareShare meals beside Victoria Park station", "where": "Victoria Park, Abbotsford", "lat": -37.7995, "lng": 144.9965, "freq": "weekly", "hrs": 14, "commit": "Half-day shifts, Mon and Wed", "url": "https://fareshare.net.au/volunteering-in-the-kitchen-garden", "src": "https://fareshare.net.au/volunteering-in-the-kitchen-garden", "verified": true, "note": "Waitlist (long at Abbotsford)", "id": 1, "extra": []}, {"name": "OzHarvest Melbourne", "cause": "Food relief", "what": "Food rescue van runs, kitchen help and events", "where": "3/49 Bertie St, Port Melbourne", "lat": -37.833, "lng": 144.93, "freq": "flexible", "hrs": 6, "commit": "A couple of hours to a full day; many roles need no regular commitment", "url": "https://www.ozharvest.org", "src": "https://www.liveup.org.au/activities/ozharvest-melbourne", "verified": true, "note": "Weekdays, business hours mostly; small registration cost", "id": 2, "extra": []}, {"name": "FoodFilled", "cause": "Food relief", "what": "Drive surplus food from shops to local charities", "where": "Citywide pickups (CBD, North, South East)", "lat": null, "lng": null, "freq": "fortnightly", "hrs": 2, "commit": "Min 2 shifts / 2 hours a month; each run under 1 hour", "url": "https://www.volunteer.com.au/volunteering/239323/volunteer-food-rescue-drivers", "src": "https://volunteer.boroondara.vic.gov.au/volunteer/opportunity?opp=232793", "verified": true, "note": "Own car and licence; WWCC", "id": 3, "extra": []}, {"name": "Foodbank Victoria", "cause": "Food relief", "what": "Pick, pack and sort food for 500+ charities", "where": "4/2 Somerville Rd, Yarraville", "lat": -37.8135, "lng": 144.885, "freq": "weekly", "hrs": 22, "commit": "Weekday shifts 9am to 2:30pm; weekly ideal, fortnightly or monthly possible", "url": "https://foodbank.org.au/VIC/warehouse-volunteering", "src": "https://foodbank.org.au/VIC/warehouse-volunteering", "verified": true, "note": "WWCC; physical work", "id": 4, "extra": []}, {"name": "Open Table", "cause": "Food relief", "what": "Cook and serve free community lunches from rescued food", "where": "North Fitzroy and inner north", "lat": -37.7845, "lng": 144.988, "freq": "flexible", "hrs": 8, "commit": "Saturday community lunch kitchen shifts; join as often as suits", "url": "https://www.monash.edu/flagship-rich-experiences/volunteering/volunteering-opportunities/open-table", "src": "https://www.monash.edu/flagship-rich-experiences/volunteering/volunteering-opportunities/open-table", "verified": false, "note": "Shift length not published", "id": 5, "extra": []}, {"name": "Port Phillip Community Group", "cause": "Food relief", "what": "Emergency relief, food warehouse sorting, front desk", "where": "Port Melbourne / St Kilda", "lat": -37.8385, "lng": 144.942, "freq": "weekly", "hrs": 14, "commit": "Front desk Fridays 1pm to 4:30pm; other roles by arrangement", "url": "https://www.ppcg.org.au", "src": "https://www.ppcg.org.au/?p=169", "verified": true, "note": "Police check, WWCC", "id": 6, "extra": []}, {"name": "Sacred Heart Mission", "cause": "Homelessness", "what": "Serve 400+ free meals a day in the St Kilda dining hall", "where": "87 Grey St, St Kilda", "lat": -37.8607, "lng": 144.981, "freq": "fortnightly", "hrs": 6, "commit": "Min one shift a fortnight (meals); op shops ask ~4h shifts", "url": "https://www.sacredheartmission.org/volunteer-position/meals-program-volunteer/", "src": "https://www.sacredheartmission.org/volunteer-position/meals-program-volunteer/", "verified": true, "note": "Open 365 days", "id": 7, "extra": []}, {"name": "St Mary's House of Welcome", "cause": "Homelessness", "what": "Reception, meals, driving at a Fitzroy drop-in centre", "where": "165-169 Brunswick St, Fitzroy", "lat": -37.8017, "lng": 144.9783, "freq": "weekly", "hrs": 12, "commit": "Regular roster; ask about current shift lengths", "url": "https://give.smhow.org.au/about", "src": "https://www.liveup.org.au/activities/st-marys-house-of-welcome", "verified": false, "note": "Commitment not published", "id": 8, "extra": []}, {"name": "Orange Sky Melbourne", "cause": "Homelessness", "what": "Run free laundry and shower vans and sit for a chat", "where": "CBD shifts (e.g. Batman Park)", "lat": -37.8212, "lng": 144.9575, "freq": "fortnightly", "hrs": 6, "commit": "One 2-4h shift per fortnight; min 6 months", "url": "https://orangesky.org.au", "src": "https://www.acu.edu.au/about-acu/community-engagement/staff-community-engagement-opportunities/orange-sky", "verified": true, "note": "Starts with an Orangetation session", "id": 9, "extra": []}, {"name": "VincentCare Ozanam House", "cause": "Homelessness", "what": "Meal service and support at a homelessness resource centre", "where": "North Melbourne", "lat": -37.7968, "lng": 144.95, "freq": "monthly", "hrs": 4, "commit": "Varies; e.g. a monthly Sunday evening meal shift", "url": "https://www.vincentcare.org.au", "src": "https://www.vincentcare.org.au/?p=3087", "verified": false, "note": "Commitment per role", "id": 10, "extra": []}, {"name": "Launch Housing", "cause": "Homelessness", "what": "Youth mentoring, L2P driving mentoring, admin, committees", "where": "68 Oxford St, Collingwood", "lat": -37.8045, "lng": 144.9855, "freq": "weekly", "hrs": 8, "commit": "Set per role; ongoing roles ask for a fixed weekly time", "url": "https://jobs.lever.co/launchhousing", "src": "https://jobs.lever.co/launchhousing", "verified": false, "note": "Screening paid for by Launch", "id": 11, "extra": []}, {"name": "Melbourne City Mission", "cause": "Connection & care", "what": "Community Friend: one-on-one outings with someone living with disability", "where": "472 Nicholson St, Fitzroy North", "lat": -37.783, "lng": 144.977, "freq": "fortnightly", "hrs": 6, "commit": "A few hours a fortnight; also aged-care visiting", "url": "https://www.mcm.org.au/get-involved/volunteer", "src": "https://www.volunteer.com.au/volunteering/192944/community-friend-volunteer-inclusive-diverse-all-are-welcome-to-voluneer-", "verified": true, "note": "18+", "id": 12, "extra": []}, {"name": "Brotherhood of St Laurence", "cause": "Connection & care", "what": "Social companion for older people; op shops; playgroups", "where": "67 Brunswick St, Fitzroy", "lat": -37.8065, "lng": 144.9785, "freq": "weekly", "hrs": 12, "commit": "2-3 hours, 1-3 days a week (negotiable)", "url": "https://www.bsl.org.au", "src": "https://probonoaustralia.com.au/?p=1977596", "verified": true, "note": "", "id": 13, "extra": []}, {"name": "Carlton Neighbourhood Learning Centre", "cause": "Connection & care", "what": "Thursday community lunch, food relief, classroom help, urban farm", "where": "20 Princes St, Carlton North", "lat": -37.79, "lng": 144.969, "freq": "weekly", "hrs": 10, "commit": "Weekly lunch shift on Thursdays; other roles vary", "url": "https://www.yarracity.vic.gov.au/things-to-do/community-centres-and-venues/carlton-neighbourhood-learning-centre", "src": "https://www.innercitynews.com.au/celebrating-national-volunteer-week/", "verified": false, "note": "Shift length not published", "id": 14, "extra": []}, {"name": "Big Group Hug", "cause": "Connection & care", "what": "Sort and pack donated baby and kids' goods for families", "where": "Thomastown (off map, north)", "lat": -37.686, "lng": 145.023, "freq": "weekly", "hrs": 8, "commit": "A couple of hours a week", "url": "https://www.liveup.org.au/activities/big-group-hug", "src": "https://volunteer.com.au/volunteering/197130/volunteer-session-supervisor-groups-schools-and-corporate-", "verified": true, "note": "Warehouse work", "id": 15, "extra": []}, {"name": "City of Melbourne Visitor Services", "cause": "Connection & care", "what": "'Red coat' ambassador welcoming visitors around the city", "where": "Town Hall, 120 Swanston St", "lat": -37.815, "lng": 144.9665, "freq": "weekly", "hrs": 16, "commit": "Typically one 4h shift a week; 3-month trial", "url": "https://www.melbourne.vic.gov.au/careers/volunteer-with-us/Pages/tourism-volunteers.aspx", "src": "https://www.melbourne.vic.gov.au/careers/volunteer-with-us/Pages/tourism-volunteers.aspx", "verified": true, "note": "One intake a year", "id": 16, "extra": []}, {"name": "Asylum Seeker Resource Centre", "cause": "Refugees & learning", "what": "Admin, intake, community development and legal casework", "where": "Footscray", "lat": -37.8, "lng": 144.899, "freq": "weekly", "hrs": 28, "commit": "One shift a week (10am-5pm), ideally 12 months", "url": "https://www.asrc.org.au", "src": "https://www.ethicaljobs.com.au/members/asrc_volunteers/admin-support-volunteers-1", "verified": true, "note": "Lived experience valued", "id": 17, "extra": []}, {"name": "North Melbourne Language & Learning", "cause": "Refugees & learning", "what": "Classroom English support, admin and community events", "where": "North Melbourne estate", "lat": -37.7975, "lng": 144.9445, "freq": "weekly", "hrs": 12, "commit": "Min 3h a week in school terms, for 6 months", "url": "https://www.nmll.org.au", "src": "https://ethicaljobs.com.au/members/nmll/classroom-support-volunteers-english-as-an-additional-language-1", "verified": true, "note": "", "id": 18, "extra": []}, {"name": "Hotham Mission Homework Club", "cause": "Refugees & learning", "what": "Tutor primary kids from migrant families", "where": "North Melbourne", "lat": -37.8005, "lng": 144.946, "freq": "weekly", "hrs": 10, "commit": "Mon/Wed 2:45-5:15pm in term; min 6 months", "url": "https://www.volunteer.com.au/volunteering/235950/volunteer-tutor-homework-club", "src": "https://www.volunteer.com.au/volunteering/235950/volunteer-tutor-homework-club", "verified": true, "note": "WWCC, police check", "id": 19, "extra": []}, {"name": "Fitzroy Youth Homework Club", "cause": "Refugees & learning", "what": "Tutor high school and uni students (Young Assets Foundation)", "where": "Fitzroy Library", "lat": -37.8, "lng": 144.979, "freq": "weekly", "hrs": 8, "commit": "One 2h session a week in school term", "url": "https://www.ethicaljobs.com.au/members/youngassetsfoundation/volunteer-tutor-homework-club", "src": "https://www.ethicaljobs.com.au/members/youngassetsfoundation/volunteer-tutor-homework-club-2", "verified": true, "note": "", "id": 20, "extra": []}, {"name": "Ardoch", "cause": "Refugees & learning", "what": "Literacy and numeracy support in schools facing disadvantage", "where": "Office 85 Queen St; schools across Melbourne", "lat": -37.8165, "lng": 144.961, "freq": "weekly", "hrs": 8, "commit": "2 hours a week, min one school term", "url": "https://www.ardoch.org.au", "src": "https://volunteer.com.au/volunteering/204576/education-support-volunteer-ardoch", "verified": true, "note": "3 references, WWCC", "id": 21, "extra": []}, {"name": "Fitzroy Learning Network", "cause": "Refugees & learning", "what": "Neighbourhood house: English, computer and job skills for newcomers", "where": "198 Napier St, Fitzroy", "lat": -37.799, "lng": 144.98, "freq": "weekly", "hrs": 8, "commit": "Ask; regular tutoring roles", "url": "https://www.fitzroylearningnetwork.org.au", "src": "https://www.melbourneplaygrounds.com.au/fitzroy-learning-network", "verified": false, "note": "Commitment not published", "id": 22, "extra": []}, {"name": "CERES", "cause": "Environment & waterways", "what": "Working bees across the farm, nursery, chooks and park; festival shifts", "where": "Lee St, Brunswick East", "lat": -37.768, "lng": 144.981, "freq": "drop-in", "hrs": 4, "commit": "Working bees ~4h (9am-1pm); festival shifts 3h", "url": "https://ceres.org.au", "src": "https://events.humanitix.com/ceres-working-bee-sca", "verified": true, "note": "", "id": 23, "extra": []}, {"name": "Friends of Merri Creek", "cause": "Environment & waterways", "what": "Weeding, planting, litter and bird surveys along the Merri", "where": "Coburg Lake, East Coburg, Merri Park", "lat": -37.734, "lng": 144.9665, "extra": [[-37.779, 144.9935], [-37.755, 144.98]], "freq": "drop-in", "hrs": 4, "commit": "Weekly Wed and Fri bees 9:30-11:30am; turn up when you can", "url": "https://www.friendsofmerricreek.org.au", "src": "https://mcmc.org.au/mcmccalendar/eventdetail/172871/107|113/fomc-coburg-lake-surrounds-friday-working-bee", "verified": true, "note": "", "id": 24}, {"name": "Merri Creek Management Committee", "cause": "Environment & waterways", "what": "Staff-led restoration days and the Merri events calendar", "where": "2 Lee St, Brunswick East", "lat": -37.7672, "lng": 144.9828, "freq": "drop-in", "hrs": 2, "commit": "Wednesday Volunteers 10am-12pm; one-off events", "url": "https://mcmc.org.au", "src": "https://mcmc.org.au/mcmccalendar/eventdetail/172739/-/fomc-wednesday-volunteers?pop=0", "verified": true, "note": "Best single calendar for the north", "id": 25, "extra": []}, {"name": "Friends of Moonee Ponds Creek", "cause": "Environment & waterways", "what": "Weeding, mulching and planting bees", "where": "Brunswick West and Kensington", "lat": -37.759, "lng": 144.933, "extra": [[-37.793, 144.929]], "freq": "drop-in", "hrs": 4, "commit": "Sunday bees 10am-12pm, roughly fortnightly", "url": "https://mooneepondscreek.org.au", "src": "https://www.mooneepondscreek.org.au/wp-content/uploads/2026/05/FoMPC-May-July-Activities-updated-2105.pdf", "verified": true, "note": "Tools and morning tea provided", "id": 26}, {"name": "Friends of Royal Park", "cause": "Environment & waterways", "what": "Propagate and plant indigenous species; protect the park", "where": "Royal Park, Parkville", "lat": -37.7855, "lng": 144.9535, "freq": "fortnightly", "hrs": 5, "commit": "Two working bees a month (a Wednesday and a Thursday)", "url": "https://www.innercitynews.com.au/locals-working-to-protect-royal-park-biodiveristy", "src": "https://www.innercitynews.com.au/locals-working-to-protect-royal-park-biodiveristy", "verified": true, "note": "Find them on Facebook", "id": 27, "extra": []}, {"name": "Darebin Creek Mgmt Committee", "cause": "Environment & waterways", "what": "Planting days and citizen science with the Friends of Darebin Parklands", "where": "Darebin Parklands, Alphington", "lat": -37.777, "lng": 145.023, "freq": "drop-in", "hrs": 2, "commit": "One-off planting mornings, ~2h", "url": "https://govolunteer.com.au/volunteering-organisations/26289", "src": "https://events.humanitix.com/darebin-creek-bundoora-park-dam-community-planting-day", "verified": true, "note": "", "id": 28, "extra": []}, {"name": "Yarra Riverkeeper Association", "cause": "Environment & waterways", "what": "Litter clean-ups, litter sorting, planting and wildlife surveys on the Birrarung", "where": "Birrarung Marr and along the river", "lat": -37.8185, "lng": 144.9725, "freq": "drop-in", "hrs": 3, "commit": "Clean-up events ~2-3h", "url": "https://www.volunteer.com.au/volunteering-organisations/20319/yarra-riverkeeper-association-bvrc", "src": "https://fedsquare.com/events/community-cleanup-for-world-cleanup-day", "verified": true, "note": "", "id": 29, "extra": []}, {"name": "Collingwood Children's Farm", "cause": "Gardens & food growing", "what": "Busy Bees: farm and garden jobs on the Yarra", "where": "18 St Heliers St, Abbotsford", "lat": -37.8025, "lng": 145.0035, "freq": "drop-in", "hrs": 2, "commit": "Tue/Wed 2-4pm in school term; book each session", "url": "https://www.farm.org.au/casual-volunteering", "src": "https://www.farm.org.au/casual-volunteering", "verified": true, "note": "Max 12 per session", "id": 30, "extra": []}, {"name": "Port Phillip EcoCentre", "cause": "Environment & waterways", "what": "Gardening, beach clean-ups, microplastic citizen science", "where": "55A Blessington St, St Kilda", "lat": -37.8665, "lng": 144.984, "freq": "flexible", "hrs": 4, "commit": "Join after an induction (renewed yearly), then pick activities", "url": "https://ecocentre.com", "src": "https://ecocentre.com/faq", "verified": true, "note": "", "id": 31, "extra": []}, {"name": "Earthcare St Kilda", "cause": "Environment & waterways", "what": "Penguin guides, penguin habitat clean-ups, coastal planting", "where": "St Kilda pier and breakwater", "lat": -37.864, "lng": 144.969, "freq": "fortnightly", "hrs": 6, "commit": "Penguin guides: one evening a fortnight; clean-ups ~4h", "url": "https://portphillip.vic.gov.au/people-and-community/community-directory/earthcare-st-kilda", "src": "https://events.humanitix.com/penguin-habitat-clean-up", "verified": true, "note": "Guide commitment from an older call-out", "id": 32, "extra": []}, {"name": "Westgate Biodiversity", "cause": "Environment & waterways", "what": "Weeding and planting at Westgate Park and Bili Nursery", "where": "Westgate Park, Port Melbourne", "lat": -37.832, "lng": 144.9105, "freq": "monthly", "hrs": 4, "commit": "2nd Sunday monthly 10am-2pm; Mon and Wed too", "url": "https://westgatebiodiversity.org.au", "src": "https://westgatebiodiversity.org.au/sunday-working-bees-back-on/", "verified": true, "note": "WWCC (Parks Vic)", "id": 33, "extra": []}, {"name": "Friends of the Royal Botanic Gardens", "cause": "Gardens & food growing", "what": "Growing Friends propagation, plant sales, Plant Craft Cottage", "where": "Gate Lodge, Birdwood Ave", "lat": -37.83, "lng": 144.975, "freq": "weekly", "hrs": 12, "commit": "Growing Friends every Friday; cottage one day a month", "url": "https://www.rbgfriendsmelbourne.org/friends-groups/volunteers/", "src": "https://www.rbgfriendsmelbourne.org/friends-groups/volunteers/", "verified": true, "note": "Membership required; some waitlists", "id": 34, "extra": []}, {"name": "Cultivating Community", "cause": "Gardens & food growing", "what": "Support 20+ public housing community gardens", "where": "Estates across inner Melbourne", "lat": -37.815, "lng": 144.985, "extra": [[-37.7975, 144.945], [-37.804, 144.984], [-37.792, 144.969]], "freq": "flexible", "hrs": 4, "commit": "Expressions of interest; ask about current roles", "url": "https://communityfoundation.org.au/organisation/cultivating-community/", "src": "https://thecityjournal.net/?p=14366", "verified": false, "note": "Commitment not published", "id": 35}, {"name": "Brunswick Tool Library Repair Cafe", "cause": "Repair & reuse", "what": "Volunteer fixer: electronics, sewing, furniture, bikes", "where": "127 Nicholson St, Brunswick East", "lat": -37.769, "lng": 144.9745, "freq": "monthly", "hrs": 3, "commit": "Repair cafes Sunday 10am-1pm, roughly monthly", "url": "https://brunswicktoollibrary.org/events-community", "src": "https://brunswicktoollibrary.org/events-community", "verified": true, "note": "Email to join", "id": 36, "extra": []}, {"name": "Melbourne Repair Cafe (Inner West)", "cause": "Repair & reuse", "what": "Monthly community repair sessions", "where": "Seddon / inner west", "lat": -37.806, "lng": 144.893, "freq": "monthly", "hrs": 2, "commit": "Monthly ~2h session", "url": "http://melbournerepaircafe.org", "src": "https://transitiongroups.org/?p=1354", "verified": true, "note": "Check venue; older listing", "id": 37, "extra": []}, {"name": "Lort Smith", "cause": "Animals & wildlife", "what": "Kennels, cattery, laundry and hospital companionship", "where": "24 Villiers St, North Melbourne", "lat": -37.799, "lng": 144.9505, "freq": "weekly", "hrs": 10, "commit": "A few spare hours a week", "url": "https://lortsmith.com", "src": "https://lortsmith.com/?p=1121", "verified": true, "note": "Registry sometimes closed", "id": 38, "extra": []}, {"name": "Wildlife Victoria", "cause": "Animals & wildlife", "what": "Rescue and transport injured native animals", "where": "Statewide (office Abbotsford)", "lat": null, "lng": null, "freq": "flexible", "hrs": 4, "commit": "On call when available, after training", "url": "https://wildlifevictoria.org.au", "src": "https://wildlifevictoria.org.au/the-team", "verified": false, "note": "Commitment not published", "id": 39, "extra": []}];
+const CAUSES = {
+  "Food relief":"#D9622B","Homelessness":"#B8425A","Connection & care":"#8A5BB0",
+  "Refugees & learning":"#2F7FB5","Environment & waterways":"#2C8A62","Gardens & food growing":"#7DA03A",
+  "Repair & reuse":"#8A7356","Animals & wildlife":"#C9971A"
+};
+const FREQ = [["drop-in","Drop in"],["monthly","Monthly"],["fortnightly","Fortnightly"],["weekly","Weekly"],["flexible","Flexible"]];
+const state = {causes:new Set(), freqs:new Set(), q:"", sort:"hrs-asc", weight:"count", sel:null};
+
+// ---- map geometry (schematic, lat/lng) ----
+const B = {w:144.850, e:145.060, n:-37.720, s:-37.890};
+const COAST = [[-37.890,144.850],[-37.868,144.870],[-37.867,144.890],[-37.873,144.905],[-37.865,144.915],[-37.852,144.913],[-37.845,144.918],[-37.846,144.926],[-37.845,144.933],[-37.843,144.937],[-37.846,144.946],[-37.852,144.958],[-37.860,144.968],[-37.864,144.974],[-37.869,144.978],[-37.880,144.982],[-37.890,144.986]];
+const RIVERS = {
+  "Yarra":[[-37.785,145.060],[-37.784,145.030],[-37.790,145.024],[-37.797,145.004],[-37.806,145.006],[-37.815,145.007],[-37.825,145.010],[-37.829,144.995],[-37.828,144.984],[-37.824,144.977],[-37.820,144.970],[-37.821,144.960],[-37.823,144.950],[-37.822,144.938],[-37.826,144.925],[-37.828,144.912],[-37.836,144.906],[-37.846,144.916]],
+  "Merri":[[-37.720,144.964],[-37.735,144.967],[-37.745,144.975],[-37.758,144.981],[-37.768,144.986],[-37.780,144.993],[-37.789,144.998],[-37.797,145.002]],
+  "Moonee Ponds":[[-37.720,144.910],[-37.735,144.920],[-37.750,144.928],[-37.760,144.932],[-37.775,144.925],[-37.790,144.928],[-37.805,144.935],[-37.817,144.940],[-37.822,144.940]],
+  "Darebin":[[-37.720,145.036],[-37.740,145.030],[-37.760,145.027],[-37.775,145.024],[-37.788,145.030]],
+  "Maribyrnong":[[-37.765,144.870],[-37.775,144.889],[-37.790,144.900],[-37.800,144.903],[-37.812,144.908],[-37.825,144.912]]
+};
+const PLACES = [["CBD",-37.8136,144.9631],["Fitzroy",-37.799,144.981],["Collingwood",-37.802,144.989],["Carlton",-37.800,144.967],["Brunswick",-37.767,144.960],["Coburg",-37.744,144.966],["Northcote",-37.770,144.998],["Abbotsford",-37.805,145.000],["Richmond",-37.819,145.000],["North Melb.",-37.799,144.944],["Parkville",-37.787,144.953],["South Melb.",-37.833,144.960],["Port Melb.",-37.838,144.938],["St Kilda",-37.862,144.983],["Footscray",-37.799,144.900],["Yarraville",-37.815,144.888],["Kensington",-37.793,144.927],["Alphington",-37.779,145.030],["Docklands",-37.816,144.946],["Williamstown",-37.861,144.896]];
+
+const cv = document.getElementById('map'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const px = (lat,lng)=>[(lng-B.w)/(B.e-B.w)*W,(B.n-lat)/(B.n-B.s)*H];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function filtered(){
+  const q = state.q.toLowerCase();
+  return DATA.filter(d =>
+    (!state.causes.size || state.causes.has(d.cause)) &&
+    (!state.freqs.size || state.freqs.has(d.freq)) &&
+    (!q || [d.name,d.what,d.where,d.cause,d.commit].join(' ').toLowerCase().includes(q)));
+}
+function pointsOf(d){ if(d.lat==null) return []; return [[d.lat,d.lng],...(d.extra||[])]; }
+const onMap = ([la,ln]) => la<=B.n && la>=B.s && ln>=B.w && ln<=B.e;
+
+// heat colour ramp: transparent -> eucalypt -> wattle -> ember
+const STOPS = [[0,[44,138,98,0]],[0.25,[44,138,98,110]],[0.55,[201,151,26,175]],[0.8,[217,98,43,210]],[1,[178,52,40,235]]];
+function rampAt(t){
+  for(let i=1;i<STOPS.length;i++){ if(t<=STOPS[i][0]){
+    const [a,ca]=STOPS[i-1],[b,cb]=STOPS[i], f=(t-a)/(b-a);
+    return ca.map((v,k)=>Math.round(v+(cb[k]-v)*f)); } }
+  return STOPS[STOPS.length-1][1];
+}
+const LUT = Array.from({length:256},(_,i)=>rampAt(i/255));
+
+function line(pts,color,width){ ctx.beginPath(); pts.forEach(([la,ln],i)=>{const [x,y]=px(la,ln); i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.strokeStyle=color; ctx.lineWidth=width; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.stroke(); }
+
+function draw(){
+  const list = filtered();
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = css('--land'); ctx.fillRect(0,0,W,H);
+  // bay
+  ctx.beginPath(); COAST.forEach(([la,ln],i)=>{const [x,y]=px(la,ln); i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fillStyle=css('--water'); ctx.fill();
+  line(COAST, css('--creek'), 1.5);
+  for(const [k,pts] of Object.entries(RIVERS)) line(pts, css('--creek'), k==='Yarra'?5:2.4);
+  // heat layer
+  const off = document.createElement('canvas'); off.width=W; off.height=H; const o = off.getContext('2d');
+  const maxW = state.weight==='hours' ? Math.max(...DATA.map(d=>d.hrs)) : 1;
+  const R = 70;
+  for(const d of list){ const pts = pointsOf(d).filter(onMap); if(!pts.length) continue;
+    const w = (state.weight==='hours' ? d.hrs/maxW : 0.55) / Math.sqrt(pts.length);
+    for(const p of pts){ const [x,y]=px(...p); const g=o.createRadialGradient(x,y,0,x,y,R);
+      g.addColorStop(0,`rgba(0,0,0,${Math.min(1,w)})`); g.addColorStop(1,'rgba(0,0,0,0)');
+      o.fillStyle=g; o.fillRect(x-R,y-R,R*2,R*2); } }
+  const img = o.getImageData(0,0,W,H), a = img.data;
+  for(let i=0;i<a.length;i+=4){ const c=LUT[a[i+3]]; a[i]=c[0];a[i+1]=c[1];a[i+2]=c[2];a[i+3]=c[3]; }
+  o.putImageData(img,0,0); ctx.drawImage(off,0,0);
+  // place labels
+  ctx.font = `700 13px ${css('--body')}`; ctx.textAlign='center';
+  for(const [n,la,ln] of PLACES){ const [x,y]=px(la,ln); ctx.fillStyle=css('--muted'); ctx.globalAlpha=.85; ctx.fillText(n,x,y); }
+  ctx.globalAlpha=1;
+  ctx.font = `400 15px ${css('--body')}`; ctx.fillStyle=css('--creek');
+  ctx.fillText('Port Phillip', px(-37.878,144.935)[0], px(-37.878,144.935)[1]);
+  // dots
+  for(const d of list){ const pts=pointsOf(d); pts.forEach((p,i)=>{ if(!onMap(p)) return; const [x,y]=px(...p);
+    ctx.beginPath(); const r_=i?5:6; ctx.rect(x-r_,y-r_,r_*2,r_*2);
+    if(i){ ctx.strokeStyle=CAUSES[d.cause]; ctx.lineWidth=2; ctx.stroke(); }
+    else { ctx.fillStyle=CAUSES[d.cause]; ctx.fill(); ctx.strokeStyle=css('--surface'); ctx.lineWidth=2; ctx.stroke(); } }); }
+  // selection
+  const s = DATA.find(d=>d.id===state.sel);
+  if(s){ for(const p of pointsOf(s).filter(onMap)){ const [x,y]=px(...p);
+    ctx.beginPath(); ctx.rect(x-14,y-14,28,28); ctx.strokeStyle=css('--ink'); ctx.lineWidth=2.5; ctx.stroke(); }
+    const p0 = pointsOf(s).filter(onMap)[0];
+    if(p0){ const [x,y]=px(...p0); ctx.font=`700 17px ${css('--body')}`; ctx.textAlign = x>W*0.7?'right':'left';
+      const tx = x>W*0.7? x-22 : x+22; ctx.lineWidth=5; ctx.strokeStyle=css('--surface'); ctx.strokeText(s.name,tx,y+5); ctx.fillStyle=css('--ink'); ctx.fillText(s.name,tx,y+5); } }
+  const offs = list.filter(d=>!pointsOf(d).some(onMap));
+  document.getElementById('offmap').textContent = offs.length ? 'Not on the map: ' + offs.map(d=>`${d.name} (${d.where})`).join('; ') + '.' : '';
+}
+
+function drawRamp(){ const r=document.getElementById('ramp'), c=r.getContext('2d'); for(let x=0;x<r.width;x++){ const v=LUT[Math.round(40+x/r.width*215)]; c.fillStyle=`rgba(${v[0]},${v[1]},${v[2]},${v[3]/255})`; c.fillRect(x,0,1,r.height);} }
+
+function chips(){
+  const cc = document.getElementById('causeChips'); cc.innerHTML='';
+  for(const [c,col] of Object.entries(CAUSES)){ const n=DATA.filter(d=>d.cause===c).length;
+    const b=document.createElement('button'); b.className='chip'; b.setAttribute('aria-pressed',state.causes.has(c));
+    b.innerHTML=`<span class="dot" style="background:${col}"></span>${c}<span class="n">${n}</span>`;
+    b.onclick=()=>{state.causes.has(c)?state.causes.delete(c):state.causes.add(c); render();}; cc.appendChild(b); }
+  const fc = document.getElementById('freqChips'); fc.innerHTML='';
+  for(const [k,l] of FREQ){ const n=DATA.filter(d=>d.freq===k).length;
+    const b=document.createElement('button'); b.className='chip'; b.setAttribute('aria-pressed',state.freqs.has(k));
+    b.innerHTML=`${l}<span class="n">${n}</span>`;
+    b.onclick=()=>{state.freqs.has(k)?state.freqs.delete(k):state.freqs.add(k); render();}; fc.appendChild(b); }
+}
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const freqLabel = k => (FREQ.find(f=>f[0]===k)||[,k])[1];
+
+function detail(){
+  const el = document.getElementById('detail'); const d = DATA.find(x=>x.id===state.sel);
+  if(!d){ el.innerHTML = `<label class="lab">Selected group</label><p class="note" style="margin:0">Tap a row in the register or a dot on the map to see what a group needs from you.</p>`; return; }
+  el.innerHTML = `<label class="lab" style="color:${CAUSES[d.cause]}">${esc(d.cause)}</label>
+    <h3>${esc(d.name)}</h3><p style="margin:0">${esc(d.what)}</p>
+    <dl><dt>Where</dt><dd>${esc(d.where)}</dd>
+    <dt>Time</dt><dd>${esc(d.commit)} <span class="pill ${d.verified?'ok':'ask'}">${d.verified?'':'(unconfirmed)'}</span></dd>
+    <dt>Rhythm</dt><dd>${freqLabel(d.freq)} · about ${d.hrs} hrs a month</dd>
+    ${d.note?`<dt>Note</dt><dd>${esc(d.note)}</dd>`:''}
+    <dt>Links</dt><dd><a href="${esc(d.url)}" target="_blank" rel="noopener">Get involved</a> · <a href="${esc(d.src)}" target="_blank" rel="noopener">source</a></dd></dl>`;
+}
+
+function table(){
+  let list = filtered().slice();
+  const s = state.sort;
+  list.sort((a,b)=> s==='hrs-asc'? a.hrs-b.hrs || a.name.localeCompare(b.name) : s==='hrs-desc'? b.hrs-a.hrs : s==='cause'? a.cause.localeCompare(b.cause)||a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
+  const tb = document.getElementById('rows');
+  tb.innerHTML = list.map(d=>`<tr tabindex="0" data-id="${d.id}" aria-selected="${d.id===state.sel}">
+    <td><b>${esc(d.name)}</b><span class="sub">${esc(d.what)}</span></td>
+    <td><span class="causecell"><span class="dot" style="width:9px;height:9px;background:${CAUSES[d.cause]}"></span>${esc(d.cause)}</span></td>
+    <td>${esc(d.where)}</td>
+    <td>${esc(d.commit)}<span class="sub">${freqLabel(d.freq)}${d.note?' · '+esc(d.note):''}</span></td>
+    <td class="num">${d.hrs} ${d.verified?'':'<span class="pill ask">unconfirmed</span>'}</td>
+    <td><a href="${esc(d.src)}" target="_blank" rel="noopener">source</a></td></tr>`).join('') ||
+    `<tr><td colspan="6" class="note">No groups match. Clear a filter or the search.</td></tr>`;
+  tb.querySelectorAll('tr[data-id]').forEach(tr=>{ const go=()=>{ state.sel=+tr.dataset.id; render(); document.querySelector('.mapbox').scrollIntoView({behavior:'smooth',block:'nearest'}); };
+    tr.onclick=e=>{ if(e.target.closest('a')) return; go(); }; tr.onkeydown=e=>{ if(e.key==='Enter') go(); }; });
+  document.getElementById('count').textContent = `${list.length} of ${DATA.length} groups`;
+}
+
+function stats(){
+  const hs = DATA.map(d=>d.hrs).sort((a,b)=>a-b); const med = hs[Math.floor(hs.length/2)];
+  const light = DATA.filter(d=>d.hrs<=4).length;
+  document.getElementById('stats').innerHTML = `<span><b>${DATA.length}</b> groups</span><span><b>${Object.keys(CAUSES).length}</b> causes</span><span><b>${light}</b> ask 4 hrs a month or less</span><span>median <b>${med}</b> hrs a month</span>`;
+}
+
+function render(){ chips(); draw(); table(); detail(); }
+
+cv.addEventListener('click', e=>{
+  const r = cv.getBoundingClientRect(), x=(e.clientX-r.left)/r.width*W, y=(e.clientY-r.top)/r.height*H;
+  let best=null, bd=28*28;
+  for(const d of filtered()) for(const p of pointsOf(d)){ if(!onMap(p)) continue; const [px_,py]=px(...p); const dd=(px_-x)**2+(py-y)**2; if(dd<bd){bd=dd;best=d;} }
+  state.sel = best?best.id:null; render();
+});
+document.getElementById('q').addEventListener('input', e=>{ state.q=e.target.value; draw(); table(); });
+document.getElementById('sort').addEventListener('change', e=>{ state.sort=e.target.value; table(); });
+for(const [id,w] of [['wCount','count'],['wHours','hours']]) document.getElementById(id).onclick=()=>{ state.weight=w;
+  document.getElementById('wCount').setAttribute('aria-pressed',w==='count'); document.getElementById('wHours').setAttribute('aria-pressed',w==='hours'); draw(); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(document.fonts) document.fonts.ready.then(draw);
+stats(); drawRamp(); render();
+</script>
+
+</body>
+</html>
